@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini AI Jelly Bot</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #050505;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-family: Arial, sans-serif;
+}
+
+.bot-card {
+  width: 72px;
+  height: 72px;
+  border: 1px solid #252525;
+  border-radius: 16px;
+  background: #090909;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+
+.bot {
+  width: 50px;
+  height: 50px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  animation: jellyIdle 2.2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* =========================
+   RAINBOW RING
+========================= */
+
+.rainbow-ring {
+  position: absolute;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+
+  background: conic-gradient(
+    #ff0055,
+    #ff7a00,
+    #ffee00,
+    #00ff88,
+    #00d9ff,
+    #006aff,
+    #a000ff,
+    #ff00c8,
+    #ff0055
+  );
+
+  -webkit-mask:
+    radial-gradient(
+      farthest-side,
+      transparent calc(100% - 3px),
+      #000 calc(100% - 2px)
+    );
+
+  mask:
+    radial-gradient(
+      farthest-side,
+      transparent calc(100% - 3px),
+      #000 calc(100% - 2px)
+    );
+
+  animation: ringSpin 2.2s linear infinite;
+
+  filter:
+    drop-shadow(0 0 4px rgba(255,255,255,.12))
+    drop-shadow(0 0 7px rgba(255,0,200,.25));
+
+  transition:
+    animation-duration .3s ease,
+    filter .3s ease;
+
+  z-index: 0;
+}
+
+/* Thinking mode = faster ring */
+.bot.thinking .rainbow-ring {
+  animation-duration: .65s;
+  filter:
+    drop-shadow(0 0 5px rgba(255,255,255,.2))
+    drop-shadow(0 0 12px rgba(255,0,200,.4));
+}
+
+/* =========================
+   WHITE JELLY BODY
+========================= */
+
+.body {
+  width: 38px;
+  height: 38px;
+  position: relative;
+  z-index: 2;
+
+  background:
+    radial-gradient(
+      circle at 30% 25%,
+      #ffffff 0%,
+      #ffffff 52%,
+      #f3f3f3 80%,
+      #dddddd 100%
+    );
+
+  border-radius:
+    46% 54% 51% 49% /
+    50% 43% 57% 50%;
+
+  box-shadow:
+    inset -2px -3px 5px rgba(0,0,0,.08),
+    inset 3px 3px 6px rgba(255,255,255,.9),
+    0 3px 8px rgba(255,255,255,.05);
+
+  animation: bodyMorph 1.7s ease-in-out infinite;
+
+  transition:
+    transform .08s linear,
+    width .12s ease,
+    height .12s ease;
+}
+
+/* =========================
+   GLOSS
+========================= */
+
+.body::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 8px;
+  width: 11px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.9);
+  transform: rotate(-18deg);
+  filter: blur(.4px);
+}
+
+/* =========================
+   EYES
+========================= */
+
+.eyes {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+}
+
+.eye {
+  position: absolute;
+  width: 7px;
+  height: 13px;
+
+  border-radius: 50%;
+  background: #030303;
+
+  transition:
+    transform .09s linear,
+    width .12s ease,
+    height .12s ease,
+    top .18s ease;
+
+  box-shadow:
+    inset 1px 1px 1px rgba(255,255,255,.1);
+}
+
+.eye.left {
+  left: 11px;
+  top: 12px;
+}
+
+.eye.right {
+  left: 22px;
+  top: 11px;
+}
+
+.eye::after {
+  content: "";
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  left: 2px;
+  top: 2px;
+  border-radius: 50%;
+  background: white;
+}
+
+/* Thinking: eyes look upward */
+.bot.thinking .eye {
+  top: 7px;
+}
+
+/* Message received: wider eyes */
+.bot.message-received .eye {
+  width: 8px;
+  height: 15px;
+}
+
+/* Blink */
+.bot.blink .eye {
+  height: 2px !important;
+  transform: translateY(5px) !important;
+}
+
+/* =========================
+   FINISHED BOUNCE
+========================= */
+
+.bot.finished {
+  animation:
+    finishBounce .55s cubic-bezier(.2,.9,.3,1) both;
+}
+
+/* =========================
+   IDLE ANIMATIONS
+========================= */
+
+.bot.idle-wiggle {
+  animation:
+    idleWiggle .9s ease-in-out both;
+}
+
+.bot.idle-stretch {
+  animation:
+    idleStretch 1s ease-in-out both;
+}
+
+.bot.idle-hop {
+  animation:
+    idleHop .65s cubic-bezier(.2,.9,.3,1) both;
+}
+
+/* =========================
+   VOICE MODE
+========================= */
+
+.bot.voice .rainbow-ring {
+  animation-duration: 1s;
+}
+
+.bot.voice .body {
+  transition:
+    transform .06s linear,
+    width .06s linear,
+    height .06s linear;
+}
+
+/* =========================
+   ANIMATIONS
+========================= */
+
+@keyframes ringSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes jellyIdle {
+  0% {
+    transform:
+      translateY(0)
+      rotate(0deg)
+      scale(1,1);
+  }
+
+  25% {
+    transform:
+      translateY(-1px)
+      rotate(-1.5deg)
+      scale(1.03,.97);
+  }
+
+  50% {
+    transform:
+      translateY(1px)
+      rotate(1.5deg)
+      scale(.97,1.03);
+  }
+
+  75% {
+    transform:
+      translateY(-1px)
+      rotate(-1deg)
+      scale(1.02,.98);
+  }
+
+  100% {
+    transform:
+      translateY(0)
+      rotate(0deg)
+      scale(1,1);
+  }
+}
+
+@keyframes bodyMorph {
+  0%,100% {
+    border-radius:
+      46% 54% 51% 49% /
+      50% 43% 57% 50%;
+  }
+
+  25% {
+    border-radius:
+      52% 48% 46% 54% /
+      43% 55% 45% 57%;
+  }
+
+  50% {
+    border-radius:
+      48% 52% 55% 45% /
+      55% 45% 55% 45%;
+  }
+
+  75% {
+    border-radius:
+      43% 57% 48% 52% /
+      48% 57% 43% 52%;
+  }
+}
+
+@keyframes finishBounce {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+
+  35% {
+    transform: translateY(-5px) scale(1.05,.95);
+  }
+
+  65% {
+    transform: translateY(1px) scale(.98,1.02);
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes idleWiggle {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  25% {
+    transform: rotate(-5deg) translateX(-1px);
+  }
+
+  50% {
+    transform: rotate(5deg) translateX(1px);
+  }
+
+  75% {
+    transform: rotate(-3deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes idleStretch {
+  0% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.1,.9);
+  }
+
+  65% {
+    transform: scale(.94,1.06);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes idleHop {
+  0% {
+    transform: translateY(0);
+  }
+
+  40% {
+    transform: translateY(-5px) scale(1.04,.96);
+  }
+
+  70% {
+    transform: translateY(1px) scale(.97,1.03);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="bot-card">
+
+  <div class="bot" id="bot">
+
+    <div class="rainbow-ring"></div>
+
+    <div class="body" id="body">
+
+      <div class="eyes">
+        <div class="eye left"></div>
+        <div class="eye right"></div>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+
+/* =====================================================
+   MINI AI BOT CONTROLLER
+===================================================== */
+
+const bot = document.getElementById("bot");
+const body = document.getElementById("body");
+const eyes = document.querySelectorAll(".eye");
+
+let mouseX = window.innerWidth / 2;
+let mouseY = window.innerHeight / 2;
+
+let smoothX = mouseX;
+let smoothY = mouseY;
+
+
+/* =====================================================
+   EYE TRACKING
+===================================================== */
+
+document.addEventListener("mousemove", (event) => {
+  mouseX = event.clientX;
+  mouseY = event.clientY;
+});
+
+
+function trackEyes() {
+
+  smoothX += (mouseX - smoothX) * .12;
+  smoothY += (mouseY - smoothY) * .12;
+
+  const rect = bot.getBoundingClientRect();
+
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+
+  let dx = smoothX - centerX;
+  let dy = smoothY - centerY;
+
+  const distance = Math.sqrt(dx * dx + dy * dy);
+
+  if (distance > 0) {
+    dx /= distance;
+    dy /= distance;
+  }
+
+  const maxMove = 2.8;
+
+  const moveX = dx * maxMove;
+  const moveY = dy * maxMove;
+
+  eyes.forEach((eye, index) => {
+
+    const multiplier =
+      index === 0 ? .9 : 1;
+
+    eye.style.transform =
+      `translate(
+        ${moveX * multiplier}px,
+        ${moveY * multiplier}px
+      )`;
+  });
+
+  requestAnimationFrame(trackEyes);
+}
+
+trackEyes();
+
+
+/* =====================================================
+   THINKING
+   Call this when your AI starts generating
+===================================================== */
+
+function setThinking() {
+
+  bot.classList.remove(
+    "finished",
+    "message-received"
+  );
+
+  bot.classList.add("thinking");
+}
+
+
+/* =====================================================
+   FINISHED
+   Call this when AI finishes responding
+===================================================== */
+
+function setFinished() {
+
+  bot.classList.remove("thinking");
+
+  bot.classList.add("finished");
+
+  setTimeout(() => {
+    bot.classList.remove("finished");
+  }, 600);
+}
+
+
+/* =====================================================
+   USER MESSAGE
+   Call this immediately when user sends a message
+===================================================== */
+
+function userMessage() {
+
+  bot.classList.remove("message-received");
+
+  void bot.offsetWidth;
+
+  bot.classList.add("message-received");
+
+  setTimeout(() => {
+    bot.classList.remove("message-received");
+  }, 350);
+}
+
+
+/* =====================================================
+   BLINK
+===================================================== */
+
+function blink() {
+
+  if (
+    bot.classList.contains("message-received") ||
+    bot.classList.contains("thinking")
+  ) {
+    scheduleBlink();
+    return;
+  }
+
+  bot.classList.add("blink");
+
+  setTimeout(() => {
+    bot.classList.remove("blink");
+  }, 130);
+
+  scheduleBlink();
+}
+
+function scheduleBlink() {
+
+  const next =
+    2200 + Math.random() * 3500;
+
+  setTimeout(blink, next);
+}
+
+scheduleBlink();
+
+
+/* =====================================================
+   RANDOM IDLE ANIMATIONS
+===================================================== */
+
+function randomIdleAnimation() {
+
+  if (
+    bot.classList.contains("thinking") ||
+    bot.classList.contains("voice") ||
+    bot.classList.contains("finished") ||
+    bot.classList.contains("message-received")
+  ) {
+    scheduleIdle();
+
+    return;
+  }
+
+  const animations = [
+    "idle-wiggle",
+    "idle-stretch",
+    "idle-hop"
+  ];
+
+  const chosen =
+    animations[
+      Math.floor(
+        Math.random() * animations.length
+      )
+    ];
+
+  bot.classList.add(chosen);
+
+  const duration =
+    chosen === "idle-hop" ? 700 : 1100;
+
+  setTimeout(() => {
+    bot.classList.remove(chosen);
+  }, duration);
+
+  scheduleIdle();
+}
+
+function scheduleIdle() {
+
+  const delay =
+    4500 + Math.random() * 7000;
+
+  setTimeout(randomIdleAnimation, delay);
+}
+
+scheduleIdle();
+
+
+/* =====================================================
+   VOICE INPUT
+   MICROPHONE → JELLY SQUISH
+===================================================== */
+
+let audioContext = null;
+let analyser = null;
+let microphone = null;
+let animationFrame = null;
+
+
+/**
+ * Start microphone animation.
+ *
+ * Browser will ask for microphone permission.
+ */
+async function startVoiceInput() {
+
+  try {
+
+    const stream =
+      await navigator.mediaDevices.getUserMedia({
+        audio: true
+      });
+
+    audioContext =
+      new (
+        window.AudioContext ||
+        window.webkitAudioContext
+      )();
+
+    analyser =
+      audioContext.createAnalyser();
+
+    analyser.fftSize = 256;
+
+    microphone =
+      audioContext.createMediaStreamSource(stream);
+
+    microphone.connect(analyser);
+
+    const data =
+      new Uint8Array(
+        analyser.frequencyBinCount
+      );
+
+    bot.classList.add("voice");
+
+    function updateVoice() {
+
+      analyser.getByteFrequencyData(data);
+
+      let total = 0;
+
+      for (let i = 0; i < data.length; i++) {
+        total += data[i];
+      }
+
+      const volume =
+        total / data.length / 255;
+
+      /*
+        Convert microphone volume
+        into jelly deformation.
+      */
+
+      const amount =
+        Math.min(volume, 1);
+
+      const scaleX =
+        1 + amount * .18;
+
+      const scaleY =
+        1 - amount * .12;
+
+      const lift =
+        -amount * 1.5;
+
+      body.style.transform =
+        `translateY(${lift}px)
+         scale(${scaleX}, ${scaleY})`;
+
+      animationFrame =
+        requestAnimationFrame(updateVoice);
+    }
+
+    updateVoice();
+
+  } catch (error) {
+
+    console.warn(
+      "Microphone access was not available:",
+      error
+    );
+
+  }
+}
+
+
+/**
+ * Stop microphone animation.
+ */
+function stopVoiceInput() {
+
+  bot.classList.remove("voice");
+
+  if (animationFrame) {
+    cancelAnimationFrame(animationFrame);
+    animationFrame = null;
+  }
+
+  if (microphone) {
+    microphone.disconnect();
+    microphone = null;
+  }
+
+  if (audioContext) {
+    audioContext.close();
+    audioContext = null;
+  }
+
+  body.style.transform = "";
+}
+
+
+/* =====================================================
+   EXAMPLE AI EVENT FLOW
+===================================================== */
+
+/*
+
+USER SENDS MESSAGE:
+
+userMessage();
+
+AI STARTS GENERATING:
+
+setThinking();
+
+AI FINISHES:
+
+setFinished();
+
+
+VOICE BUTTON:
+
+startVoiceInput();
+
+
+VOICE ENDS:
+
+stopVoiceInput();
+
+*/
+
+
+/* =====================================================
+   DEMO
+   Remove this section when connecting your real AI.
+===================================================== */
+
+setTimeout(() => {
+
+  userMessage();
+
+  setTimeout(() => {
+
+    setThinking();
+
+    setTimeout(() => {
+
+      setFinished();
+
+    }, 3000);
+
+  }, 500);
+
+}, 1500);
+
+</script>
+
+</body>
+</html>
